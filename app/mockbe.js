@@ -136,6 +136,16 @@
   function tglLokal(iso){ return new Date(Date.parse(iso) + TZ).toISOString().slice(0, 10); }
   function sah(t){ return t.status_tindak_lanjut === 'lanjut_noo' && t.foto_url && t.lat != null && t.lon != null; }
   var RPC = {
+    sales_temuan_detail: function(a){
+      var s = cekSales(a.p_kode); if(!s) return {ok: false, error: 'sesi berakhir, silakan masuk lagi dengan PIN'};
+      var t = DB.temuan_pilot.find(function(r){ return String(r.id) === String(a.p_id) && String(r.kode_salesman) === String(s.kode); });
+      return t ? {ok: true, temuan: t} : {ok: false, error: 'temuan tidak ditemukan'};
+    },
+    sales_area_uji: function(a){
+      var s = cekSales(a.p_kode); if(!s) return {ok: false, error: 'sesi berakhir, silakan masuk lagi dengan PIN'};
+      var m = {id: 'ma-' + Date.now(), depot_id: 'TESTING', kode_salesman: s.kode, drawn_by: s.kode, name: a.p_nama, reason: 'area uji dibuat di HP', geojson: a.p_geojson};
+      insertRows('manual_areas', [m]); return {ok: true, area: {id: m.id, name: m.name, reason: m.reason, geojson: m.geojson}};
+    },
     sales_login: function(a){ var s = cekSales(a.p_kode); return s ? {ok: true, kode: a.p_kode, nama: s.nama, depot: s.depot} : {ok: false, error: 'kode sales tidak dikenal atau nonaktif'}; },
     sales_tugas: function(a){
       var s = cekSales(a.p_kode); if(!s) return {ok: false, error: 'kode sales tidak dikenal atau nonaktif'};
@@ -235,6 +245,11 @@
         return jsonRes({}, 200);
       }
       if(path.indexOf('/rest/v1/') === 0) return await rest(method, decodeURIComponent(path.slice(9)), u.searchParams, headers, body);
+      if(path === '/functions/v1/foto-temuan'){
+        var kd = TOK[(body || {}).token]; if(!kd) return jsonRes({ok: false, error: 'sesi tidak valid'}, 401);
+        var urls = {}; ((body || {}).paths || []).forEach(function(pp){ if(String(pp).indexOf(kd + '/') === 0){ var ff = DB.foto.find(function(x){ return x.id === 'temuan-foto/' + pp; }); if(ff) urls[pp] = ff.url; } });
+        return jsonRes({ok: true, urls: urls});
+      }
       if(path.indexOf('/storage/v1/object/') === 0){
         var p = path.replace(/^\/storage\/v1\/object\/(public\/)?/, '');
         if(method === 'POST' || method === 'PUT'){

@@ -1183,6 +1183,23 @@ const HASIL_LBL = {lanjut_noo: 'Lanjut NOO', nanti_dikunjungi: 'Nanti dikunjungi
 const SUB_LBL = {'1_minggu': 'seminggu lagi', '2_minggu': '2 minggu lagi', grosir_saja: 'beli di grosir saja', order_kecil: 'order <250rb'};
 let RD = null;
 function rdLepasFoto(){ if(RD && RD.blobUrl){ try{ URL.revokeObjectURL(RD.blobUrl); }catch(e){} } }
+/* foto temuan milik sendiri: minta signed URL ke Edge Function foto-temuan (bucket bisa privat) */
+function fotoPathDari(u){
+  if(!u) return null; u = String(u);
+  const m = u.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/temuan-foto\/([^?#]+)/);
+  if(m) return decodeURIComponent(m[1]);
+  if(/^(https?|data|blob):/i.test(u)) return null;
+  return u.replace(/^temuan-foto\//, '');
+}
+async function fotoTemuanUrl(u){
+  const p = fotoPathDari(u); if(!p) return u || null;
+  if(window.VN_MOCK && VN_MOCK.fotoUrl){ const m = VN_MOCK.fotoUrl('temuan-foto/' + p); if(m) return m; }
+  try{
+    const r = await fetchTO(SUPABASE_URL + '/functions/v1/foto-temuan', {method: 'POST', headers: {'apikey': SUPABASE_KEY, 'Content-Type': 'application/json'}, body: JSON.stringify({token: (sesi && sesi.token) || '', paths: [p]})}, 9000);
+    const j = await r.json(); if(j && j.ok && j.urls && j.urls[p]) return j.urls[p];
+  }catch(e){}
+  return null;
+}
 async function bukaDetailTemuan(id){
   if(!sesi) return;
   const t = temuanGabungan().find(x => String(x.id) === String(id)); if(!t) return;
@@ -1193,8 +1210,8 @@ async function bukaDetailTemuan(id){
   tampil('scrTemuan'); renderDetailTemuan();
   if(!ob){
     try{
-      const r = await fetchTO(SUPABASE_URL + '/rest/v1/temuan_pilot?id=eq.' + encodeURIComponent(String(id)) + '&select=*', {headers: hdr()}, 9000);
-      if(r.ok){ const j = await r.json(); if(RD && RD.id === String(id) && j && j[0]){ RD.p = j[0]; RD.fotoUrl = j[0].foto_url || null; } }
+      const j = await rpc('sales_temuan_detail', {p_kode: sesi.kode, p_id: String(id)});
+      if(j && j.ok && RD && RD.id === String(id)){ RD.p = j.temuan; RD.fotoUrl = await fotoTemuanUrl(j.temuan.foto_url); }
     }catch(e){}
     if(RD && RD.id === String(id)){ RD.muat = false; if(screenAktif === 'scrTemuan' && !W) renderDetailTemuan(); }
   }
@@ -2460,11 +2477,10 @@ async function submitAreaManual(){
   const H = 0.00075, lat = lastPos.lat, lon = lastPos.lon;
   const geojson = {type: 'Polygon', coordinates: [[[lon-H, lat-H], [lon+H, lat-H], [lon+H, lat+H], [lon-H, lat+H], [lon-H, lat-H]]]};
   try{
-    const r = await fetchTO(SUPABASE_URL + '/rest/v1/manual_areas', {method: 'POST', headers: hdr({'Content-Type': 'application/json', 'Prefer': 'return=representation'}),
-      body: JSON.stringify({depot_id: 'TESTING', kode_salesman: sesi.kode, drawn_by: sesi.kode, name: nama, reason: 'area uji dibuat di HP', geojson: geojson})});
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json(); tutupModalManual(); toast('Area uji dibuat');
-    bukaAreaManual(j[0] || {id: uuid(), name: nama, reason: '', geojson: geojson});
+    const j = await rpc('sales_area_uji', {p_kode: sesi.kode, p_nama: nama, p_geojson: geojson});
+    if(!j || !j.ok) throw new Error((j && j.error) || 'gagal');
+    tutupModalManual(); toast('Area uji dibuat');
+    bukaAreaManual(j.area || {id: uuid(), name: nama, reason: '', geojson: geojson});
   }catch(e){ toast('Gagal membuat area: ' + e.message, 4200); }
   finally{ btn.disabled = false; btn.textContent = 'Buat & buka'; }
 }
