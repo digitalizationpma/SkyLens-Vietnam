@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SkyLens Việt Nam · Toàn quốc</title>
+<style>
+  :root{--navy:#1C212D;--or:#FE7A1B;--line:#E3E7EE;--mut:#5E6678}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.5 "Inter",system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--navy);background:#F4F6F9;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  main{max-width:720px;width:100%}
+  h1{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
+  h1 b{color:var(--or)}
+  .sub{color:var(--mut);margin:0 0 22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  a.card{display:block;text-decoration:none;color:inherit;background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;transition:transform .15s,box-shadow .15s}
+  a.card:hover,a.card:focus-visible{transform:translateY(-2px);box-shadow:0 8px 24px rgba(28,33,45,.1);outline:none}
+  a.card:focus-visible{box-shadow:0 0 0 3px var(--or)}
+  .card h2{margin:0 0 6px;font-size:19px}
+  .card p{margin:0;color:var(--mut);font-size:14px}
+  .tag{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;background:#FFF1E6;color:#B4500A;border-radius:99px;padding:3px 9px;margin-bottom:10px}
+  .note{margin-top:20px;font-size:13px;color:var(--mut);background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .note b{color:var(--navy)}
+  ul{margin:6px 0 0;padding-left:18px}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .lang{display:flex;gap:6px}
+  .lang button{font-family:inherit;font-size:13px;font-weight:700;line-height:1;border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:99px;padding:8px 13px;cursor:pointer}
+  .lang button[aria-pressed="true"]{background:var(--or);border-color:var(--or);color:#1C212D}
+  .lang button:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><h1>Sky<b>Lens</b> Việt Nam</h1>
+    <div class="lang" role="group" aria-label="Ngôn ngữ / Bahasa / Language"><button type="button" data-l="vi">VI</button><button type="button" data-l="en">EN</button><button type="button" data-l="id">ID</button></div></div>
+  <p class="sub" data-t="sub"></p>
+  <div class="grid">
+    <a class="card" href="dash/index.html"><span class="tag">ADMIN</span><h2>Dashboard</h2><p data-t="dash"></p></a>
+    <a class="card" href="app/index.html"><span class="tag" data-t="tagApp"></span><h2 data-t="app"></h2><p data-t="appd"></p></a>
+  </div>
+</main>
+<script>
+/* pilihan bahasa halaman awal; disimpan di slvn_lang yang sama dengan app & dashboard */
+(function(){
+  var T = {
+    vi: {sub:'Toàn quốc · 137 NPP · Miền Bắc / Miền Trung / Miền Nam · fork SkyLens 2.0',
+      dash:'Đăng nhập bằng tài khoản riêng: BM theo khu vực, RBM theo vùng, Super Admin.',
+      tagApp:'NVBH', app:'App bán hàng', appd:'Chọn NPP (nhóm theo vùng › khu vực), rồi chọn tên NV. Đăng nhập bằng mã PIN 6 chữ số. Mở trên điện thoại để giống thật nhất.'},
+    en: {sub:'Nationwide · 137 distributors · North / Central / South · fork of SkyLens 2.0',
+      dash:'Sign in with your own account: BM per branch, RBM per region, Super Admin.',
+      tagApp:'SALES', app:'Sales app', appd:'Pick a distributor (grouped by region › area), then your name. Sign in with your 6-digit PIN. Open it on a phone for the real feel.'},
+    id: {sub:'Nasional · 137 NPP · Miền Bắc / Miền Trung / Miền Nam · fork SkyLens 2.0',
+      dash:'Masuk dengan akun pribadi: BM per cabang, RBM per region, Super Admin.',
+      tagApp:'SALES', app:'App sales', appd:'Pilih NPP (dikelompokkan per region › area), lalu pilih nama. Masuk dengan PIN 6 angka. Buka di HP supaya paling mirip aslinya.'}
+  };
+  function pakai(l){
+    if(!T[l]) l = 'vi';
+    try{ localStorage.setItem('slvn_lang', l); }catch(e){}
+    document.documentElement.lang = l;
+    document.querySelectorAll('[data-t]').forEach(function(el){ el.innerHTML = T[l][el.getAttribute('data-t')]; });
+    document.querySelectorAll('.lang button').forEach(function(b){ b.setAttribute('aria-pressed', b.getAttribute('data-l') === l ? 'true' : 'false'); });
+  }
+  var l = 'vi'; try{ l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('slvn_lang') || 'vi'; }catch(e){}
+  document.querySelectorAll('.lang button').forEach(function(b){ b.onclick = function(){ pakai(b.getAttribute('data-l')); }; });
+  pakai(l);
+})();
+</script>
+</body>
+</html>
