@@ -445,7 +445,7 @@
       }
       body.innerHTML = '<div class="sbMsg sbFade" id="sbMsg"></div>' + toko;
       if(toko){ var tk = body.querySelector('.sbToko'); tk.style.opacity = 0; }
-      var msg = body.querySelector('#sbMsg'), full = st.html, pos = 0;
+      var msg = body.querySelector('#sbMsg'), full = (window.I18N && I18N.html) ? I18N.html(st.html) : st.html, pos = 0; msg.classList.add('notranslate');
       clearInterval(sbTyper);
       var beres = function(){ clearInterval(sbTyper); msg.innerHTML = full; var t = body.querySelector('.sbToko'); if(t){ t.style.transition = 'opacity .3s'; t.style.opacity = 1; } };
       sbTyper = setInterval(function(){

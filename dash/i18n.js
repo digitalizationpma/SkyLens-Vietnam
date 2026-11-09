@@ -44,6 +44,7 @@
     else if(RE){ RE.lastIndex = 0; out = s.replace(RE, function(m){ return DICT[m]; }); }
     else out = s;
     if(cache.size > 20000) cache.clear();
+    if(window.__I18N_LOG) window.__I18N_LOG.set(s, out);   /* QA: catat teks asli -> terjemahan */
     cache.set(s, out); return out;
   }
   var ATTR = ['placeholder', 'title', 'aria-label', 'alt', 'data-tip'];
@@ -130,6 +131,8 @@
   document.documentElement.lang = lang === 'id' ? 'id' : lang;
   window.I18N = {
     lang: lang, t: tr,
+    /* terjemahkan potongan HTML sebelum ditampilkan (dipakai efek ketik Pinpin: yang diketik sudah bahasa terpilih) */
+    html: function(h){ if(lang === 'id' || h == null) return h; var d = document.createElement('div'); d.innerHTML = String(h); sapu(d); return d.innerHTML; },
     bulan: null, hari: null,   // nama bulan/hari tetap dari kode (Indonesia) lalu diterjemahkan kamus
     set: function(l){ try{ localStorage.setItem(KEY, l); }catch(e){} location.reload(); },
     /* tombol pilih bahasa kecil: I18N.tombol() -> elemen */
