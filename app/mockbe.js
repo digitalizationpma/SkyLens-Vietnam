@@ -185,6 +185,7 @@
     sales_data: async function(a){ var s = cekSales(a.p_token); if(!s) return {ok: false, error: 'sesi berakhir, silakan masuk lagi dengan PIN'}; var d = await dataQa(s.depot, a.p_sken); return d ? {ok: true, zona: d.zona, outlet: d.outlet, kpi: d.kpi} : {ok: false, error: 'data depo belum ada'}; },
     saya: function(){ var m = AKUN(); return m ? Object.assign({ok: true}, m) : {ok: false, error: 'akun belum terdaftar'}; },
     dash_data: async function(a){ var m = AKUN(); if(!m || (m.peran !== 'SA' && m.depot.indexOf(a.p_depot) < 0)) return {ok: false, error: 'tidak berhak'}; var d = await dataQa(a.p_depot, a.p_sken); return d ? {ok: true, data: d} : {ok: false, error: 'data depo belum ada'}; },
+    kode_tanpa_pin: function(a){ return (a.p_kode || []).filter(function(k){ return !PINBARU[k]; }); },
     atur_pin_massal: function(a){ (a.p || []).forEach(function(x){ PINBARU[x[0]] = x[1]; }); return {ok: true, n: (a.p || []).length}; },
     hapus_jejak: function(a){
       var dl = DB.jejak_lokasi.filter(function(r){ return (!a.p_kode || String(r.kode_salesman) === String(a.p_kode)) && (a.p_key == null || +r.key_petak === +a.p_key) && (!a.p_dari || r.waktu >= a.p_dari) && (!a.p_sampai || r.waktu < a.p_sampai); });
