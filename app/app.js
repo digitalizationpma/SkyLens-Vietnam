@@ -261,12 +261,13 @@ async function prosesOutbox(){
     for(const rec of tem){
       try{
         if(rec.foto && !rec.payload.foto_url){
+          if(rec.foto.size > FOTO_MAKS){ try{ const kc = await kecilkanFoto(rec.foto, 1600, 0.7); if(kc && kc.size > 0 && kc.size <= FOTO_MAKS){ rec.foto = kc; await obPut(rec); } }catch(e){} }
           const path = rec.kode + '/' + rec.payload.id + '.jpg';
           const r = await fetchTO(SUPABASE_URL + '/storage/v1/object/temuan-foto/' + encodeURIComponent(rec.kode) + '/' + rec.payload.id + '.jpg',
             {method:'POST', headers: hdr({'Content-Type':'image/jpeg'}), body: rec.foto}, 60000);
           if(!r.ok){
             const tx = await r.text();
-            if(!/Duplicate|already exists/i.test(tx)) throw new Error('upload foto gagal (' + r.status + ')');
+            if(!/Duplicate|already exists/i.test(tx)){ const eu = new Error('upload foto gagal (' + r.status + ') ' + tx.slice(0, 120)); eu.tetap = r.status >= 400 && r.status < 500 && r.status !== 408 && r.status !== 429; throw eu; }
           }
           rec.payload.foto_url = (window.VN_MOCK && VN_MOCK.fotoUrl('temuan-foto/' + path)) || (SUPABASE_URL + '/storage/v1/object/public/temuan-foto/' + path);
           await obPut(rec);
@@ -274,7 +275,7 @@ async function prosesOutbox(){
         const j = await rpc('kirim_temuan', {p_kode: rec.kode, p_data: rec.payload});
         if(j && j.ok){ await obDel(rec.id); obGalat = ''; terkirimTemuan++; }
         else { rec.tries = (rec.tries||0)+1; rec.err = (j && j.error) || 'ditolak'; await obPut(rec); obGalat = rec.err; }
-      }catch(e){ rec.tries = (rec.tries||0)+1; rec.err = e.message; try{ await obPut(rec); }catch(_){} obGalat = e.message; break; }
+      }catch(e){ rec.tries = (rec.tries||0)+1; rec.err = e.message; try{ await obPut(rec); }catch(_){} obGalat = e.message; if(!e.tetap) break; }
     }
     all = await obAll(); obSisa = all.length; obTemuan = all.filter(x => x.tipe === 'temuan');
   }catch(e){ obGalat = e.message; }
@@ -2422,9 +2423,9 @@ async function ambilAlamatBalik(lat, lon){
   }catch(e){}
   return null;
 }
-async function buatFotoBerwatermark(file){
-  const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); });
-  const MAX = 1600; let w = img.width, h = img.height;
+async function buatFotoBerwatermark(file, MAXP){
+  const img = await muatGambar(file);
+  const MAX = MAXP || 1600; let w = img.width, h = img.height;
   if(w > MAX || h > MAX){ const sk = MAX/Math.max(w, h); w = Math.round(w*sk); h = Math.round(h*sk); }
   const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
   const ctx = cv.getContext('2d'); ctx.drawImage(img, 0, 0, w, h);
@@ -2451,15 +2452,35 @@ async function buatFotoBerwatermark(file){
   ctx.fillStyle = '#90caf9';
   ctx.fillText((pt.key != null ? 'Petak ' + pt.key : 'Di luar petak') + ' · ' + sesi.kode + ' - ' + namaBersih(sesi.nama), pad, ty);
   const blob = await new Promise(res => cv.toBlob(res, 'image/jpeg', 0.72));
-  URL.revokeObjectURL(img.src);
+  try{ URL.revokeObjectURL(img.src); }catch(e){}
+  cv.width = cv.height = 0;
   return blob;
+}
+var FOTO_MAKS = 2800000;   // bucket temuan-foto menolak > 3 MB
+function muatGambar(file){
+  return new Promise((res, rej) => { const im = new Image(); const t = setTimeout(() => rej(new Error('gambar lambat dibaca')), 20000);
+    im.onload = () => { clearTimeout(t); if(!im.width || !im.height) rej(new Error('gambar kosong')); else res(im); };
+    im.onerror = () => { clearTimeout(t); rej(new Error('gambar tidak bisa dibaca')); }; im.src = URL.createObjectURL(file); });
+}
+async function kecilkanFoto(file, max, q){
+  const img = await muatGambar(file); let w = img.width, h = img.height; const sk = Math.min(1, max / Math.max(w, h)); w = Math.round(w * sk); h = Math.round(h * sk);
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = h; cv.getContext('2d').drawImage(img, 0, 0, w, h);
+  const b = await new Promise(r => cv.toBlob(r, 'image/jpeg', q || 0.7)); try{ URL.revokeObjectURL(img.src); }catch(e){} cv.width = cv.height = 0; return b;
+}
+async function prosesFoto(f){
+  for(const mx of [1600, 1200, 900]){
+    try{ const b = await buatFotoBerwatermark(f, mx); if(b && b.size > 0 && b.size <= FOTO_MAKS) return b; }catch(e){ console.warn('watermark ' + mx, e); }
+  }
+  try{ const b = await kecilkanFoto(f, 1200, 0.7); if(b && b.size > 0 && b.size <= FOTO_MAKS) return b; }catch(e){}
+  if(f && f.size > 0 && f.size <= FOTO_MAKS){ try{ await muatGambar(f); return f; }catch(e){} }
+  return null;
 }
 async function onPhoto(input){
   const f = input.files && input.files[0] ? input.files[0] : null; if(!f || !W) return;
   const box = $('wizFoto'); if(box) box.innerHTML = '<div class="photo"><b>Memproses foto…</b></div>';
-  let blob;
-  try{ blob = await buatFotoBerwatermark(f); }catch(e){ blob = f; }
+  const blob = await prosesFoto(f);
   if(!W){ input.value = ''; return; }
+  if(!blob){ input.value = ''; renderWizFoto(); toast('Foto gagal diproses. Ambil ulang fotonya (cek juga memori HP tidak penuh).', 5000); return; }
   if(W.fotoUrl) URL.revokeObjectURL(W.fotoUrl);
   W.foto = blob; W.fotoUrl = URL.createObjectURL(blob); W.err.foto = false;
   input.value = '';
