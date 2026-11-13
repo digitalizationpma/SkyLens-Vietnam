@@ -2175,7 +2175,7 @@ function renderWiz(){
     const nooBox = '<div class="radnoo' + (W.status === 'lanjut_noo' ? ' on' : '') + (E.order ? ' bad' : '') + '" id="radNoo">' + st('lanjut_noo', 'Lanjut NOO', 'Pemilik setuju jadi toko baru') +
       '<div class="ordsec' + (W.ordTutup ? ' tutup' : '') + '" id="ordSec" data-f="order"><button type="button" class="ordhd" onclick="wizOrdToggle()" aria-expanded="' + (W.ordTutup ? 'false' : 'true') + '">' + ico('struk', 'width:18px;height:18px') + '<b>Nominal orderan</b><span class="ordwj">WAJIB</span><span class="ordval" id="ordVal">' + (W.order !== '' ? fmtRp(+W.order) : '') + '</span>' + ico('chev', 'width:16px;height:16px') + '</button>' +
       '<div class="ordbody"><span class="ordsub">Nilai transaksi hari ini. Bukan rata-rata belanja</span><label class="ordin"><span class="ordrp">Rp</span><input id="ordInput" type="number" inputmode="numeric" pattern="[0-9]*" min="0" enterkeyhint="done" value="' + esc(W.order) + '" placeholder="0" aria-label="Nominal orderan (Rp)" oninput="wizOrdInput(this)" onkeydown="if(event.key===\'Enter\')this.blur()"></label>' +
-      '<span class="ordprev" id="rpOrd">' + (W.order !== '' ? fmtRp(+W.order) : '') + '</span>' + (E.order ? '<span class="err" id="ordErr">Isi nominal orderan (lebih dari 0)</span>' : '') + '</div></div></div>';
+      '<span class="ordprev" id="rpOrd">' + (W.order !== '' ? fmtRp(+W.order) : '') + '</span>' + (E.order ? '<span class="err" id="ordErr">' + (E.orderKecil ? 'Nominal sangat kecil. Tulis nilai penuh dalam đồng, mis. 150000 (bukan 150). Kalau sudah benar, tekan Simpan sekali lagi.' : 'Isi nominal orderan (lebih dari 0)') + '</span>' : '') + '</div></div></div>';
     h = wizHead('Foto & hasil kunjungan', esc(W.nama || 'Toko')) +
       '<div class="scrollY" id="wizScroll" style="padding:14px 20px;display:flex;flex-direction:column;gap:12px">' +
       '<div id="wizFoto" data-f="foto"></div>' +
@@ -2210,6 +2210,7 @@ function renderWiz(){
   const sc = $('wizScroll'); if(sc && sameStep) sc.scrollTop = oldScroll;
 }
 function wizSudah(v){ W.sudah = v; renderWiz(); }
+var ORD_MIN_VND = 10000;
 function wizOrdInput(inp){
   W.order = inp.value; const t = inp.value === '' ? '' : fmtRp(+inp.value);
   const p = $('rpOrd'); if(p) p.textContent = t; const v = $('ordVal'); if(v) v.textContent = t;
@@ -2249,10 +2250,11 @@ function wizNext(){
     if(W.status === 'nanti_dikunjungi' && !W.sub) E.sub = true;
     if(W.status === 'tidak_tertarik' && !W.sub) E.sub = true;
     if(W.status === 'lanjut_noo' && !(parseFloat(W.order) > 0)){ E.order = true; W.ordTutup = false; }
+    else if(W.status === 'lanjut_noo' && parseFloat(W.order) < ORD_MIN_VND && W.ordKecilOk !== String(W.order)){ E.order = true; E.orderKecil = true; W.ordKecilOk = String(W.order); W.ordTutup = false; }
     W.err = E;
     if(Object.keys(E).length){
       renderWiz();
-      toast(E.foto ? 'Foto toko wajib dilampirkan' : (E.status ? 'Pilih dulu hasil kunjungan' : (E.sub ? 'Pilih salah satu pilihan di bawah hasil' : 'Lanjut NOO: isi nominal orderan dulu')), 2800);
+      toast(E.foto ? 'Foto toko wajib dilampirkan' : (E.status ? 'Pilih dulu hasil kunjungan' : (E.sub ? 'Pilih salah satu pilihan di bawah hasil' : (E.orderKecil ? 'Cek nominal orderan: tulis nilai penuh' : 'Lanjut NOO: isi nominal orderan dulu'))), 2800);
       if(E.order && !E.foto && !E.sub){ const f = $('radNoo'); if(f && f.scrollIntoView) f.scrollIntoView({block: 'center', behavior: 'smooth'}); }
       return;
     }
